@@ -1,0 +1,190 @@
+<?php
+ini_set('max_execution_time', 300000);
+header('content-type:text/html;charset=utf-8');
+
+
+$free_users = GetUserByPro(0);
+$pro_users = GetUserByPro(1);
+
+$it_users = GetUserByCountry('IT');
+$de_users = GetUserByCountry('DE');
+$cz_users = GetUserByCountry('CZ');
+
+
+global $conn;
+$error = '';
+$succuss = '';
+
+if (isset($_POST['send_to'])) {
+    $_send_to = Secure($_POST['send_to']);
+
+    $_message = Secure($_POST['message']);
+
+
+
+    $sql = '';
+    $users = array();
+    if ($_send_to == 'free_users') {
+        $users = $free_users;
+    } else if ($_send_to == 'pro_users') {
+        $users = $pro_users;
+    } else if ($_send_to == 'it_users') {
+        $users = $it_users;
+    } else if ($_send_to == 'de_users') {
+        $users = $de_users;
+    } else if ($_send_to == 'cz_users') {
+        $users = $cz_users;
+    }
+    $query = false;
+    $sent = 0;
+
+    if (!empty($users)) {
+
+        echo "<style>.container-fluid{display: none;}
+            .sent{
+                font-size: 11px;
+                font-family: monospace;
+                border: 4px solid #ad098e;
+                padding: 0px 5px;
+                position: fixed;
+                top: 25%;
+                right: 25%;
+                left: 25%;
+                bottom: 25%;
+                margin: 0 auto;
+                vertical-align: middle;
+                opacity: 1;
+                background: #ffffff;
+            }
+            .sent .logo{
+                margin: 0;
+                position: absolute;
+                top: 30%;
+                left: 50%;
+                margin-right: -50%;
+                transform: translate(-50%, -30%);
+            }
+            .sent .title{
+                margin: 0;
+                position: absolute;
+                top: 40%;
+                left: 50%;
+                margin-right: -50%;
+                transform: translate(-50%, -40%);
+                text-align: left;
+                font-size: 20px;
+                font-family: initial;
+            }
+            .sent .message{
+                margin: 0;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                margin-right: -50%;
+                transform: translate(-50%, -50%);
+                text-align: left;
+            }
+        .sent .status{
+                margin: 0;
+                position: absolute;
+                top: 55%;
+                left: 50%;
+                margin-right: -50%;
+                transform: translate(-50%, -55%);
+                text-align: left;
+            }
+            </style>";
+
+        $total_user = count($users);
+        $active_user = auth();
+
+        foreach ($users as $key => $user) {
+                $from = (int)$active_user->id;
+                $to = (int)$user['id'];
+                $text = html_entity_decode($_message, ENT_QUOTES);
+                $created = date('Y-m-d H:i:s');
+                $sql = "INSERT INTO `messages` (`from`, `to`, `text`, `created_at`) VALUES ('{$from}', '{$to}', '{$text}', '{$created}')";
+                $query = mysqli_query($conn, $sql);
+                $sent++;
+                echo '<div class="sent">
+                                <p class="logo"><img src="' . $wo['config']['theme_url'] . '/assets/img/logo.png" width="160" height="35"></p>
+                                <p class="title">Please wait while sending spam messages.</p>
+                                <p class="message">Queue email : ' . $user['email'] . '</p>
+                                <p class="status">' . $sent . ' of ' . $total_user . ' SPAM SENT</p>
+                            </div>';
+
+                $_msg = LoadEndPointResource('messages');
+                if ($_msg) {
+                    $_msg->createNewConversation((int) $to);
+                }
+
+        }
+        $link = Wo_LoadAdminLinkSettings('mock-email') . '?success_msg=' . __('Message sent to') . ' ' . $sent . ' ' . __('users');
+        echo "<meta http-equiv=\"refresh\" content=\"0; URL='" . $link . "'\" />";
+
+    }
+
+    if ($query) {
+        $succuss = '<i class="fa fa-fw fa-check"></i> ' . __('Message sent to') . ' ' . $sent . ' ' . __('users');
+    } else {
+        $error = '<i class="fa fa-fw fa-exclamation-triangle"></i> ' . __('Error while Sending SPAM');
+    }
+}
+
+if (isset($_GET['success_msg'])) {
+    $succuss = '<i class="fa fa-fw fa-check"></i> ' . Secure($_GET['success_msg']);
+}
+
+?>
+
+<div class="container-fluid">
+    <div class="block-header">
+        <h2>USERS > Send SPAM</h2>
+    </div>
+    <div class="row">
+        <div class="col-lg-6 col-md-6">
+            <div class="card">
+                <div class="body">
+                    <?php if (!empty($error)) { ?>
+                        <div class="alert alert-danger">
+                            <?php echo $error; ?>
+                        </div>
+                    <?php } ?>
+                    <?php if (!empty($succuss)) { ?>
+                        <div class="alert alert-success">
+                            <?php echo $succuss; ?>
+                        </div>
+                    <?php } ?>
+                    <form class="mailing-settings" method="POST">
+                        <label for="send_to">Send SPAM message to</label>
+                        <select class="form-control show-tick" id="send_to" name="send_to">
+                            <option value="free_users">» Free users ( <?php echo count($free_users); ?> user )
+                            </option>
+                            <option value="pro_users">» Premium users ( <?php echo count($pro_users); ?> user )
+                            </option>
+                            <option value="it_users">» Italy users ( <?php echo count($it_users); ?> user )</option>
+                            <option value="de_users">» Germany users ( <?php echo count($de_users); ?> user )
+                            </option>
+                            <option value="cz_users">» Cehia users ( <?php echo count($cz_users); ?> user )</option>
+                        </select>
+                        <div class="clearfix"></div>
+                        <br><br>
+                        <div class="form-group form-float">
+                            <div class="form-line">
+                                    <textarea name="message" id="message" class="form-control" cols="30"
+                                              rows="10"></textarea>
+                                <label class="form-label">Message</label>
+                            </div>
+                        </div>
+
+
+                        <input type="hidden" name="hash_id" value="<?php echo Wo_CreateSession(); ?>">
+                        <button type="submit" class="btn btn-primary m-t-15 waves-effect">Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="clearfix"></div>
+    </div>
+
+</div>
